@@ -22,7 +22,7 @@ run `secrets {x}` where x is either
     - [x] Implement `secrets remove`
     - [x] Hardcode Password to `'hello'`
 - [ ] Make app more secure
-    - [ ] Stop hardcoding passwords, store user-supplied passwords in seperate file
+    - [x] Stop hardcoding passwords, store user-supplied passwords in seperate file
     - [ ] Make passwords more secure with encryption
     - [ ] Use `sqLite` to strore passwords
 - [ ] Make app more accessible

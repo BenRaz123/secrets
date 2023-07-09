@@ -1,9 +1,9 @@
 use clap::{Parser, Subcommand};
 use requestty::Question;
 use std::fs;
-use std::process::exit;
-use std::io::BufReader;
 use std::io::prelude::*;
+use std::io::BufReader;
+use std::process::exit;
 
 #[derive(Parser, Debug)]
 #[command(name = "secrets")]
@@ -15,16 +15,42 @@ struct Args {
     command: Option<Subcommands>,
 }
 
+macro_rules! prompt_pass {
+    ($name:ident with message $message:expr) => {
+        let question = Question::password("$name")
+            .message($message.to_string())
+            .mask('*')
+            .build();
+        let answer = requestty::prompt_one(question).unwrap();
+        let $name = answer.as_string().unwrap().to_string();
+    };
+}
+
 fn file_is_empty(path: &str) -> bool {
-    let file = fs::OpenOptions::new()
-        .read(true)
-        .open(path).unwrap();
+    let file = fs::OpenOptions::new().read(true).open(path).unwrap();
     let reader = BufReader::new(&file);
-    let buf: String = reader.lines().map(|l| l.unwrap()).collect::<Vec<String>>().join("");
+    let buf: String = reader
+        .lines()
+        .map(|l| l.unwrap())
+        .collect::<Vec<String>>()
+        .join("");
     match &buf[..] {
         "" | " " | "\n" => true,
-        _ => false
+        _ => false,
     }
+}
+
+fn pass_is_empty() -> bool {
+    let pass_file = fs::OpenOptions::new().read(true).open("./pass.txt");
+    if pass_file.is_err() {
+        return true;
+    }
+    let mut pass = String::new();
+    pass_file.unwrap().read_to_string(&mut pass).unwrap();
+    if pass.trim().is_empty() {
+        return true;
+    }
+    false
 }
 
 fn get_file_path() -> String {
@@ -36,29 +62,51 @@ fn get_file_path() -> String {
     format!("{}/secrets.txt", home.unwrap())
 }
 
-/// # Hello World
-/// _hello_
-/// **bye**
-fn prompt_password() -> Option<String> {
-    let password = Question::password("password")
-        .message("Please enter your password")
-        .mask('*')
-        .build();
-    Some(
-        requestty::prompt_one(password)
-            .unwrap()
-            .as_string()
-            .unwrap()
-            .into(),
-    )
+fn authenticate() {
+    if pass_is_empty() {
+        new_password().unwrap();
+        return;
+    }
+    check_password(&prompt_password());
 }
 
-/// # Check Password
-/// exits with `1` if `pass` is incorrect
-fn check_password(pass: &str) {
-    if pass != "hello" {
-        eprintln!("error: Incorrect Password!");
+fn new_password() -> Result<(), Box<dyn std::error::Error>> {
+    prompt_pass!(new_pass with message "Please enter a new password");
+    prompt_pass!(rep_pass with message "Please repeat that password");
+
+    if rep_pass != new_pass {
+        println!("The two passwords do not match!");
         exit(1);
+    }
+
+    let mut pass_file = fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .create(true)
+        .open("./pass.txt")?;
+
+    pass_file.write_all(new_pass.as_bytes())?;
+
+    Ok(())
+}
+
+fn prompt_password() -> String {
+    prompt_pass!(pass with message "Please enter your password");
+    pass
+}
+
+fn check_password(pass: &str) {
+    let mut pass_file = fs::OpenOptions::new()
+        .read(true)
+        .open("./pass.txt")
+        .expect("Password file not found");
+    let mut official_pass = String::new();
+    pass_file
+        .read_to_string(&mut official_pass)
+        .expect("Could not read password file");
+    if pass != official_pass.trim() {
+        eprintln!("Incorrect password!");
+        exit(1)
     }
 }
 
@@ -73,14 +121,12 @@ fn write_to_file(input: &str) {
 }
 
 fn read_from_file() -> Option<Vec<String>> {
-    let file = fs::OpenOptions::new()
-        .read(true)
-        .open(get_file_path());
+    let file = fs::OpenOptions::new().read(true).open(get_file_path());
 
     if file.is_err() {
         return None;
     }
-    
+
     let mut buff = String::new();
 
     file.unwrap().read_to_string(&mut buff).unwrap();
@@ -94,9 +140,27 @@ fn read_from_file() -> Option<Vec<String>> {
     Some(owned_output)
 }
 
+fn remove_index_from_file(index: u32) -> Result<(), Box<dyn std::error::Error>> {
+    let file_read = fs::OpenOptions::new().read(true).open(get_file_path())?;
+
+    let reader = BufReader::new(&file_read);
+
+    let mut buf: Vec<String> = reader.lines().map(|l| l.unwrap()).collect();
+
+    buf.remove(index as usize);
+
+    let mut file_write = fs::OpenOptions::new()
+        .truncate(true)
+        .write(true)
+        .open(get_file_path())?;
+
+    file_write.write_all(format!("{}\n", buf.join("\n")).as_bytes())?;
+
+    Ok(())
+}
+
 fn new() {
-    let password: String = prompt_password().unwrap();
-    check_password(&password);
+    authenticate();
     let secret = Question::input("secret")
         .message("What is your secret?")
         .build();
@@ -108,34 +172,17 @@ fn new() {
     write_to_file(&secret);
 }
 
-fn remove_index_from_file(index: u32) -> Result<(), Box<dyn std::error::Error>> {
-    let file_read = fs::OpenOptions::new()
-        .read(true)
-        .open(get_file_path())?;
-
-    let reader = BufReader::new(&file_read);
-    
-    let mut buf: Vec<String> = reader.lines().map(|l| l.unwrap()).collect(); 
-
-    buf.remove(index as usize);
-   
-    let mut file_write = fs::OpenOptions::new()
-        .truncate(true)
-        .write(true)
-        .open(get_file_path())?;
-
-    file_write.write_all(format!("{}\n", buf.join("\n")).as_bytes())?;
-    
-    Ok(())
-}
-
 fn remove() {
-    check_password(&prompt_password().unwrap());
+    authenticate();
     if file_is_empty(&get_file_path()) {
         eprintln!("You don't have any secrets, silly!");
         exit(1);
     }
-    let lines: Vec<String> = read_from_file().unwrap().into_iter().filter(|l| l != "\n" || l != " " || l != "").collect();
+    let lines: Vec<String> = read_from_file()
+        .unwrap()
+        .into_iter()
+        .filter(|l| l != "\n" || l != " " || l != "")
+        .collect();
     let user_deletion = Question::select("remove secret")
         .message("Which secret(s) do you want to remove?")
         .choices(&lines)
@@ -146,12 +193,19 @@ fn remove() {
 }
 
 fn list() {
-    check_password(&prompt_password().unwrap());
+    authenticate();
     let lines = read_from_file();
     match &lines {
         Some(lines) => {
             println!("Your Secrets:\n");
-            lines.iter().for_each(|line| println!("{line}"));
+            lines
+                .iter()
+                .filter(|line| {
+                    *line != &"".to_string()
+                        || *line != &" ".to_string()
+                        || *line != &"\n".to_string()
+                })
+                .for_each(|line| println!("{line}"));
         }
         None => {
             eprintln!("error: File cannot be read");
@@ -169,10 +223,13 @@ enum Subcommands {
 
 fn main() {
     let args = Args::parse();
+
     if args.command.is_none() {
-        exit(0);
+        exit(1);
     }
+
     let subcommand = args.command.unwrap();
+
     match subcommand {
         Subcommands::New => new(),
         Subcommands::List => list(),
