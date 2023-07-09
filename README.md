@@ -29,3 +29,4 @@ run `secrets {x}` where x is either
     - [x] Create README
     - [x] Upload to Github
     - [ ] Upload to crates.io
+- [ ] Make app work on multi-user systems
