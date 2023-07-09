@@ -5,8 +5,6 @@ use std::process::exit;
 use std::io::BufReader;
 use std::io::prelude::*;
 
-type Password = String;
-
 #[derive(Parser, Debug)]
 #[command(name = "secrets")]
 #[command(author = "Ben Raz <ben.raz2008@gmail.com>")]
@@ -41,7 +39,7 @@ fn get_file_path() -> String {
 /// # Hello World
 /// _hello_
 /// **bye**
-fn prompt_password() -> Option<Password> {
+fn prompt_password() -> Option<String> {
     let password = Question::password("password")
         .message("Please enter your password")
         .mask('*')
@@ -57,8 +55,8 @@ fn prompt_password() -> Option<Password> {
 
 /// # Check Password
 /// exits with `1` if `pass` is incorrect
-fn check_password(pass: &Password) {
-    if *pass != String::from("hello") {
+fn check_password(pass: &str) {
+    if pass != "hello" {
         eprintln!("error: Incorrect Password!");
         exit(1);
     }
@@ -97,7 +95,7 @@ fn read_from_file() -> Option<Vec<String>> {
 }
 
 fn new() {
-    let password: Password = prompt_password().unwrap();
+    let password: String = prompt_password().unwrap();
     check_password(&password);
     let secret = Question::input("secret")
         .message("What is your secret?")
