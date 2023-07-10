@@ -1,8 +1,8 @@
 pub mod fileutils;
 pub mod passutils;
 
-use fileutils::fileutils::*;
-use passutils::passutils::authenticate;
+use fileutils::*;
+use passutils::authenticate;
 
 use clap::{Parser, Subcommand};
 use requestty::Question;

@@ -1,4 +1,3 @@
-pub mod passutils {
 
     use std::io::prelude::*;
 
@@ -73,4 +72,3 @@ pub mod passutils {
         }
         check_password(&prompt_password());
     }
-}

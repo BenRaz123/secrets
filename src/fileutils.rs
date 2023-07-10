@@ -1,4 +1,3 @@
-pub mod fileutils {
     use std::io::prelude::*;
     pub fn file_is_empty(path: &str) -> bool {
         let file = std::fs::OpenOptions::new().read(true).open(path).unwrap();
@@ -73,4 +72,3 @@ pub mod fileutils {
 
         Ok(())
     }
-}
