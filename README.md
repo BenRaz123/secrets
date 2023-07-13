@@ -1,25 +1,25 @@
-# `secrets` - A secure way of keeping secrets
+# seecrets 🤫 - A secure way of keeping secrets
 
 ## What is this?
 
-`secrets` is a cli app which aids in the secure management of potentially embarassing secrets.
+`seecrets` is a cli app which aids in the secure management of potentially embarassing secrets.
 
 ## How do I use this?
 
-run `secrets {x}` where x is either
+run `seecrets {x}` where x is either
 
 | Name | Action |
 |------|--------|
 | new  | create a new secret |
-| list | list all secrets |
-| remove | remove from your list of secrets |
+| list | list all seecrets |
+| remove | remove from your list of seecrets |
 
 ## Status
 
 - [x] Implement basic app
-    - [x] Implement `secrets new`
-    - [x] Implement `secrets list`
-    - [x] Implement `secrets remove`
+    - [x] Implement `seecrets new`
+    - [x] Implement `seecrets list`
+    - [x] Implement `seecrets remove`
     - [x] Hardcode Password to `'hello'`
 - [ ] Make app more secure
     - [x] Stop hardcoding passwords, store user-supplied passwords in seperate file

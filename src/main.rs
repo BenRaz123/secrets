@@ -7,7 +7,7 @@ use requestty::Question;
 use std::process::exit;
 
 #[derive(Parser)]
-#[command(name = "secrets")]
+#[command(name = "seecrets")]
 #[command(author = "Ben Raz <ben.raz2008@gmail.com>")]
 #[command(about = "a password-protected list of secrets")]
 #[command(version = "0.0.1")]
