@@ -23,8 +23,8 @@ run `secrets {x}` where x is either
     - [x] Hardcode Password to `'hello'`
 - [ ] Make app more secure
     - [x] Stop hardcoding passwords, store user-supplied passwords in seperate file
-    - [ ] Make passwords more secure with encryption
-    - [ ] Use `sqLite` to strore passwords
+    - [x] Make passwords more secure with encryption
+    - [x] Use `sqLite` to strore passwords
 - [ ] Make app more accessible
     - [x] Create README
     - [x] Upload to Github

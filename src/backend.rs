@@ -1,5 +1,6 @@
 use sqlite::*;
 use requestty::*;
+use magic_crypt::{new_magic_crypt, MagicCryptTrait};
 
 macro_rules! get_pass {
     ($name:ident with message $msg:expr) => {
@@ -9,6 +10,14 @@ macro_rules! get_pass {
         let answer = prompt_one(question).unwrap();
         let $name = answer.as_string().unwrap();
     }
+}
+
+fn check_password<'a>(pass: &'a str) {
+    let crypt_pass = sha256::digest(pass);
+    if crypt_pass != get_password().unwrap() {
+        eprintln!("Passwords do not match!");
+        std::process::exit(1);
+    } 
 }
 
 fn print_failure<'a>(message: &'a str) {
@@ -27,11 +36,8 @@ pub fn authenticate() {
         new_password().unwrap();
         return;
     }
-    let password = get_password();
     get_pass!(user_pass with message "Please enter your password");
-    if &password.unwrap() != &user_pass.to_string() {
-        print_failure("Password does not match!");
-    }
+    check_password(&user_pass);
 }
 
 pub fn scaffold_db() -> sqlite::Result<()> {
@@ -48,10 +54,10 @@ pub fn secrets_is_empty() -> bool {
 }
 
 pub fn insert_secret<'a>(secret: &'a str) -> sqlite::Result<()> {
-    dbg!(get_id().unwrap());
+    let encrypted_secret = new_magic_crypt!(get_password().unwrap(), 256).encrypt_str_to_base64(secret);  
     let id =get_id().unwrap();
     let db = open(get_db_path())?;
-    db.execute(format!("INSERT INTO secrets VALUES ({id}, '{secret}');"))?;
+    db.execute(format!("INSERT INTO secrets VALUES ({id}, '{encrypted_secret}');"))?;
     Ok(())
 }
 
@@ -80,6 +86,10 @@ pub fn get_secrets() -> sqlite::Result<Vec<String>> {
         }
         true
     })?;
+    let decryptor = new_magic_crypt!(get_password()?, 256);
+    for item in res.iter_mut() {
+        *item = decryptor.decrypt_base64_to_string(&item).unwrap();
+    }
     Ok(res)
 }
 
@@ -91,21 +101,23 @@ pub fn new_password() -> sqlite::Result<()> {
         print_failure("Passwords do not match!");
     }
 
+    let pass = sha256::digest(new_pass);
+
     let db = open(get_db_path())?;
     db.execute(format!(
         "DROP TABLE IF EXISTS password;
-        CREATE TABLE password (password TEXT);
-        INSERT INTO password VALUES ('{new_pass}');",
+        CREATE TABLE password (digest TEXT);
+        INSERT INTO password VALUES ('{pass}');",
     ))?;
     Ok(())
 }
 
 pub fn get_password() -> sqlite::Result<String> {
     let db = open(get_db_path())?;
-    db.execute("CREATE TABLE IF NOT EXISTS password (password TEXT)")?;
+    db.execute("CREATE TABLE IF NOT EXISTS password (digest TEXT)")?;
     let mut res: String = String::new();
 
-    db.iterate("SELECT * FROM password", |pairs| {
+    db.iterate("SELECT digest FROM password", |pairs| {
         for &(_, value) in pairs.iter() {
             res += value.unwrap();
         }
