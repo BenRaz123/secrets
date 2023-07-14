@@ -50,7 +50,7 @@ fn list() {
     let lines = get_secrets(&password);
     match &lines {
         Ok(lines) => {
-            println!("Your Secrets:\n");
+            println!("Your Secrets:");
             lines
                 .iter()
                 .filter(|line| {
@@ -58,7 +58,7 @@ fn list() {
                         || *line != &" ".to_string()
                         || *line != &"\n".to_string()
                 })
-                .for_each(|line| println!("{line}"));
+                .for_each(|line| println!("- {line}"));
         }
         Err(_) => {
             eprintln!("error: File cannot be read");
