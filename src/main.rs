@@ -7,7 +7,7 @@ use requestty::Question;
 use std::process::exit;
 
 #[derive(Parser)]
-#[command(name = "seecrets")]
+#[command(name = "secrets")]
 #[command(author = "Ben Raz <ben.raz2008@gmail.com>")]
 #[command(about = "a password-protected list of secrets")]
 #[command(version = "0.0.1")]
@@ -17,7 +17,7 @@ struct Args {
 }
 
 fn new() {
-    authenticate();
+    let password = authenticate();
     let secret = Question::input("secret")
         .message("What is your secret?")
         .build();
@@ -26,12 +26,12 @@ fn new() {
         .as_string()
         .unwrap()
         .into();
-    insert_secret(&secret).unwrap();
+    insert_secret(&password, &secret).unwrap();
 }
 
 fn remove() {
-    authenticate();
-    let lines: Vec<String> = get_secrets()
+    let password = authenticate();
+    let lines: Vec<String> = get_secrets(&password)
         .unwrap() 
         .into_iter()
         .filter(|l| l != "\n" || l != " " || l != "")
@@ -46,8 +46,8 @@ fn remove() {
 }
 
 fn list() {
-    authenticate();
-    let lines = get_secrets();
+    let password = authenticate();
+    let lines = get_secrets(&password);
     match &lines {
         Ok(lines) => {
             println!("Your Secrets:\n");

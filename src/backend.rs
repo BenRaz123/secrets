@@ -29,15 +29,16 @@ fn get_db_path() -> String {
     format!("{}/secrets.db", std::env::var("HOME").expect("Could not get $HOME!"))
 }
 
-pub fn authenticate() {
+pub fn authenticate() -> String {
     scaffold_db().unwrap();
-    let password = get_password();
-    if password.unwrap().len() < 1 { 
+    let password = get_password().unwrap();
+    if password.clone().len() < 1 as usize { 
         new_password().unwrap();
-        return;
+        return password.into();
     }
     get_pass!(user_pass with message "Please enter your password");
     check_password(&user_pass);
+    user_pass.into()
 }
 
 pub fn scaffold_db() -> sqlite::Result<()> {
@@ -50,11 +51,21 @@ pub fn scaffold_db() -> sqlite::Result<()> {
 }
 
 pub fn secrets_is_empty() -> bool {
-    get_secrets().unwrap().len() > 0
+    let db = open(get_db_path()).unwrap();
+    let query = "SELECT secrets FROM secrets";
+    let mut result: Vec<String> = Vec::new();
+    db.iterate(
+        query, |pairs| {
+            for &(_,v) in pairs.iter() {
+                result.push(v.unwrap().into())
+            } true
+        }
+    ).unwrap();
+    result.len() < 1
 }
 
-pub fn insert_secret<'a>(secret: &'a str) -> sqlite::Result<()> {
-    let encrypted_secret = new_magic_crypt!(get_password().unwrap(), 256).encrypt_str_to_base64(secret);  
+pub fn insert_secret<'a>(password: &'a str, secret: &'a str) -> sqlite::Result<()> {
+    let encrypted_secret = new_magic_crypt!(password, 256).encrypt_str_to_base64(secret);  
     let id =get_id().unwrap();
     let db = open(get_db_path())?;
     db.execute(format!("INSERT INTO secrets VALUES ({id}, '{encrypted_secret}');"))?;
@@ -77,7 +88,7 @@ fn get_id() -> sqlite::Result<u64> {
     Ok(*ids.last().unwrap_or(&0u64)+1)
 }
 
-pub fn get_secrets() -> sqlite::Result<Vec<String>> {
+pub fn get_secrets<'a>(password: &'a str) -> sqlite::Result<Vec<String>> {
     let db = open(get_db_path())?;
     let mut res: Vec<String> = Vec::new();
     db.iterate("SELECT secrets FROM secrets", |pairs| {
@@ -86,7 +97,7 @@ pub fn get_secrets() -> sqlite::Result<Vec<String>> {
         }
         true
     })?;
-    let decryptor = new_magic_crypt!(get_password()?, 256);
+    let decryptor = new_magic_crypt!(password, 256);
     for item in res.iter_mut() {
         *item = decryptor.decrypt_base64_to_string(&item).unwrap();
     }
