@@ -1,3 +1,5 @@
+# ⚠️ CRITICAL BUG ⚠️ app not working right now
+
 # seecrets 🤫 - A secure way of keeping secrets
 
 ## What is this?
