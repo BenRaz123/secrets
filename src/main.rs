@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use magic_crypt::*;
 use sha256::digest;
+use rand::seq::SliceRandom;
 
 #[derive(Parser)]
 struct Args {
@@ -36,19 +37,42 @@ macro_rules! open_db {
     }
 }
 
-fn store_password<'a>(password: &'a str) -> sqlite::Result<()> {
+fn new_salt() -> String {
+    let chars: Vec<char> = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*\\/<>;:".chars().collect();
+    let mut rng = rand::thread_rng();
+    let mut res = String::new();
+    for _ in 0..=20 {
+        res.push(*chars.clone().choose(&mut rng).unwrap());  
+    }
+    res
+}
+
+fn store_password<'a>(password: &'a str, salt: &'a str) -> sqlite::Result<()> {
     let db = open_db!();
 
     db.execute(
         "DROP TABLE IF EXISTS password;
-        CREATE TABLE password (digest TEXT);"
+        CREATE TABLE password (digest TEXT, salt TEXT);"
     )?;
 
     db.execute(format!(
-        "INSERT INTO password VALUES ('{password}');"
+        "INSERT INTO password VALUES ('{password}', '{salt}');"
     ))?;
 
     Ok(())
+}
+
+fn get_salt() -> sqlite::Result<String> {
+    let db = open_db!();
+    let mut salt = String::new();
+    db.iterate(
+       "SELECT salt FROM password;", |pairs| {
+            for &(_k, v) in pairs.iter() {
+                salt = v.unwrap().into();
+            } true
+       } 
+    )?;
+    Ok(salt)
 }
 
 fn get_password() -> sqlite::Result<String> {
@@ -73,12 +97,14 @@ fn authenticate() -> String {
             eprintln!("passwords do not match");
             std::process::exit(1);
         }
-        store_password(&digest(new_pass)).unwrap();
+        let salt = new_salt();
+        store_password(&digest(new_pass.to_string()+&salt), &salt).unwrap();
         return new_pass.into();
     }
     let db_password = get_password().unwrap();
+    let salt = get_salt().expect("Password authentication failed: Could not get salt!");
     get_pass!(user_password with message "Please enter your password");
-    if db_password != digest(user_password) {
+    if db_password != digest(user_password.to_string()+&salt) {
         eprintln!("Passwords do not match");
         std::process::exit(1);
     }
@@ -156,6 +182,7 @@ fn remove<'a>(password: &'a str) {
 }
 
 fn main() {
+    println!("Random Salt: {}", new_salt());
     let db = open_db!();
     let password = authenticate();
     db.execute("CREATE TABLE secrets (id INTEGER, digest TEXT);").unwrap_or(());
