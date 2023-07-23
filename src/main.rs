@@ -5,14 +5,23 @@ use rand::seq::SliceRandom;
 
 #[derive(Parser)]
 struct Args {
+    /// Allows you to reset the password. NOTE: erases your data
+    #[arg(short, long="reset-password")]
+    reset_password: bool,
     #[command(subcommand)]
-    command: Subcommands
+    command: Option<Subcommands>
 }
 #[derive(Subcommand)]
 enum Subcommands {
     New,
     List,
     Remove
+}
+
+macro_rules! fail {
+    ($msg:expr) =>  {
+        color_print::cprintln!("<red,bold>error:</red,bold>: {}", $msg);
+    }
 }
 
 macro_rules! get_pass {
@@ -52,6 +61,7 @@ fn store_password<'a>(password: &'a str, salt: &'a str) -> sqlite::Result<()> {
 
     db.execute(
         "DROP TABLE IF EXISTS password;
+        DROP TABLE IF EXISTS secrets;
         CREATE TABLE password (digest TEXT, salt TEXT);"
     )?;
 
@@ -106,7 +116,7 @@ fn authenticate() -> String {
     get_pass!(user_password with message "Please enter your password");
     if db_password != digest(user_password.to_string()+&salt) {
         eprintln!("Passwords do not match");
-        std::process::exit(1);
+        std::process::exit(1)
     }
     user_password.into()
 }
@@ -171,23 +181,46 @@ fn list<'a>(password: &'a str) {
         .expect("Could not retrieve list")
         .iter()
         .map(|x| mc.decrypt_base64_to_string(x).expect("Could not decrypt vvalue"))
-        .for_each(|x| println!("- {x}"));
+        .for_each(|x| color_print::cprintln!("<green>-</> <bold,blue>{x}</>"));
 }
 
 fn remove<'a>(password: &'a str) {
-    let index = requestty::Question::select("secret to remove").message("what secret do you want to remove?").choices(unencrypt_vec(password, get_secrets().unwrap())).build();
-    let index = requestty::prompt_one(index).unwrap();
-    let index = index.as_list_item().unwrap().index;
-    remove_secret_at(index as u64).unwrap();
+    let indexes = requestty::Question::multi_select("secret to remove").message("what secret do you want to remove?").choices(unencrypt_vec(password, get_secrets().unwrap())).build();
+    let indexes = requestty::prompt_one(indexes).unwrap();
+    let indexes = indexes.as_list_items().unwrap();
+    indexes.iter().for_each(|x| remove_secret_at(x.index as u64).unwrap());
+}
+
+fn prompt_new_pass() {
+    get_pass!(new_pass with message "Please give a new password");
+    get_pass!(rep_pass with message "Please repeat that password");
+    if new_pass != rep_pass {
+        fail!("Passwords do not match!");
+    }
+    let salt = new_salt();
+    store_password(&digest(new_pass.to_owned()+&salt), &salt).unwrap();
+}
+
+fn parse_args() -> Option<Subcommands> {
+    let args = Args::parse();
+    let reset_pass = args.reset_password;
+    if reset_pass {
+        prompt_new_pass(); 
+        std::process::exit(0);
+    }
+    match args.command {
+        Some(subcommand) => Some(subcommand),
+        None => {fail!("Expected `new`, `list`, or `remove`"); None},
+    }
+
 }
 
 fn main() {
-    println!("Random Salt: {}", new_salt());
     let db = open_db!();
-    let password = authenticate();
     db.execute("CREATE TABLE secrets (id INTEGER, digest TEXT);").unwrap_or(());
-    let args = Args::parse();
-    match args.command {
+    let args = parse_args();
+    let password = authenticate();
+    match args.unwrap() {
         Subcommands::New => new(&password),
         Subcommands::List => list(&password),
         Subcommands::Remove => remove(&password),

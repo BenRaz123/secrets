@@ -8,7 +8,7 @@ license-file = "./LICENSE"
 keywords = ["cli", "secure", "app"]
 categories = ["command-line-utilities"]
 documentation = "https://docs.rs/seecrets/latest"
-version = "2.0.1"
+version = "3.0.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -21,6 +21,7 @@ strip=true
 
 [dependencies]
 clap = { version = "4.3.11", features = ["derive"] }
+color-print = "0.3.4"
 magic-crypt = "3.1.12"
 rand = "0.8.5"
 requestty = { version = "0.5.0", features = ["macro", "macros"] }
